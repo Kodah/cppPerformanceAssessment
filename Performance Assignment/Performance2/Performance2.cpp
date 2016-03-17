@@ -145,35 +145,41 @@ CImage* Brighten(CImage *i)
 class TImage : public CImage
 {
 public:
-	void brighten() {
-
-		vector <COLORREF> widthVector(this->GetWidth);
-		vector <vector <COLORREF>> heightVector(this->GetHeight, widthVector);
+	void greyscale() {
 
 		int width = this->GetWidth();
 		int height = this->GetHeight();
 
+		
+		long lAdrs;
+		double grey;
+		BYTE* pInImage = (BYTE*)this->GetBits();
+		BYTE bRed, bGreen, bBlue;
+		int pitch = this->GetPitch();
+
+	
 		for (int y = 0; y < height; ++y)
 		{
 			for (int x = 0; x < width; ++x)
 			{
-				heightVector[x, y].assign(this->GetPixel(x, y));
+
+				lAdrs = y * pitch + x * 3;
+
+				bRed = *(pInImage + lAdrs);
+				bGreen = *(pInImage + lAdrs + 1);
+				bBlue = *(pInImage + lAdrs + 2);
+				
+				grey =  bRed*0.587 + bGreen*0.299 + bBlue*0.114;	
+
+				*(pInImage + lAdrs) = static_cast<BYTE>(grey);
+				*(pInImage + lAdrs + 1) = static_cast<BYTE>(grey);
+				*(pInImage + lAdrs + 2) = static_cast<BYTE>(grey);
 			}
 		}
+	}
 
-		//COLORREF pixel = this->GetPixel(x, y);
-
-		/*BYTE r = GetRValue(pixel);
-		BYTE g = GetGValue(pixel);
-		BYTE b = GetBValue(pixel);
-
-		if ((r + 10) > 255) r = 255; else r += 10;
-		if ((g + 10) > 255) g = 255; else g += 10;
-		if ((b + 10) > 255) b = 255; else b += 10;
-
-		pixel = RGB(r, g, b);
-
-		this->SetPixel(x, y, pixel);*/
+	void bilinearInterpolation() {
+		// http://stackoverflow.com/questions/21572460/resizing-a-picture-vc
 	}
 };
 
@@ -199,80 +205,64 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 		TImage b1;
 		b1.Load(L"IMG_1.JPG");
-		b1.brighten();
+		b1.greyscale();
 		b1.Save(L"IMG_1.PNG");
 
-		//CImage b1, *dest1;
-		//b1.Load(L"IMG_1.JPG");
-		//dest1 = Brighten(&b1);
-		//dest1 -> Save(L"IMG_1.PNG");
-		//delete dest1;
+		TImage b2;
+		b2.Load(L"IMG_2.JPG");
+		b2.greyscale();
+		b2.Save(L"IMG_2.PNG");
 
-		//CImage b2, *dest2;
-		//b2.Load(L"IMG_2.JPG");
-		//dest2 = Brighten(&b2);
-		//dest2 -> Save(L"IMG_2.PNG");
-		//delete dest2;
+		TImage b3;
+		b3.Load(L"IMG_3.JPG");
+		b3.greyscale();
+		b3.Save(L"IMG_3.PNG");
 
-		//CImage b3, *dest3;
-		//b3.Load(L"IMG_3.JPG");
-		//dest3 = Brighten(&b3);
-		//dest3 -> Save(L"IMG_3.PNG");
-		//delete dest3;
+		TImage b4;
+		b4.Load(L"IMG_4.JPG");
+		b4.greyscale();
+		b4.Save(L"IMG_4.PNG");
 
-		//CImage b4, *dest4;
-		//b4.Load(L"IMG_4.JPG");
-		//dest4 = Brighten(&b4);
-		//dest4 -> Save(L"IMG_4.PNG");
-		//delete dest4;
+		TImage b5;
+		b5.Load(L"IMG_5.JPG");
+		b5.greyscale();
+		b5.Save(L"IMG_5.PNG");
 
-		//CImage b5, *dest5;
-		//b5.Load(L"IMG_5.JPG");
-		//dest5 = Brighten(&b5);
-		//dest5 -> Save(L"IMG_5.PNG");
-		//delete dest5;
+		TImage b6;
+		b6.Load(L"IMG_6.JPG");
+		b6.greyscale();
+		b6.Save(L"IMG_6.PNG");
 
-		//CImage b6, *dest6;
-		//b6.Load(L"IMG_6.JPG");
-		//dest6 = Brighten(&b6);
-		//dest6 -> Save(L"IMG_6.PNG");
-		//delete dest6;
+		TImage b7;
+		b7.Load(L"IMG_7.JPG");
+		b7.greyscale();
+		b7.Save(L"IMG_7.PNG");
 
-		//CImage b7, *dest7;
-		//b7.Load(L"IMG_7.JPG");
-		//dest7 = Brighten(&b7);
-		//dest7 -> Save(L"IMG_7.PNG");
-		//delete dest7;
+		TImage b8;
+		b8.Load(L"IMG_8.JPG");
+		b8.greyscale();
+		b8.Save(L"IMG_8.PNG");
 
-		//CImage b8, *dest8;
-		//b8.Load(L"IMG_8.JPG");
-		//dest8 = Brighten(&b8);
-		//dest8 -> Save(L"IMG_8.PNG");
-		//delete dest8;
+		TImage b9;
+		b9.Load(L"IMG_9.JPG");
+		b9.greyscale();
+		b9.Save(L"IMG_9.PNG");
 
-		//CImage b9, *dest9;
-		//b9.Load(L"IMG_9.JPG");
-		//dest9 = Brighten(&b9);
-		//dest9 -> Save(L"IMG_9.PNG");
-		//delete dest9;
+		TImage b10;
+		b10.Load(L"IMG_10.JPG");
+		b10.greyscale();
+		b10.Save(L"IMG_10.PNG");
 
-		//CImage b10, *dest10;
-		//b10.Load(L"IMG_10.JPG");
-		//dest10 = Brighten(&b10);
-		//dest10 -> Save(L"IMG_10.PNG");
-		//delete dest10;
+		TImage b11;
+		b11.Load(L"IMG_11.JPG");
+		b11.greyscale();
+		b11.Save(L"IMG_11.PNG");
 
-		//CImage b11, *dest11;
-		//b11.Load(L"IMG_11.JPG");
-		//dest11 = Brighten(&b11);
-		//dest11 -> Save(L"IMG_11.PNG");
-		//delete dest11;
+		TImage b12;
+		b12.Load(L"IMG_12.JPG");
+		b12.greyscale();
+		b12.Save(L"IMG_12.PNG");
 
-		//CImage b12, *dest12;
-		//b12.Load(L"IMG_12.JPG");
-		//dest12 = Brighten(&b12);
-		//dest12 -> Save(L"IMG_12.PNG");
-		//delete dest12;
 
 		//-------------------------------------------------------------------------------------------------------
 
