@@ -6,8 +6,12 @@
 
 #include <vector>
 #include <iostream>
+#include <deque>
 #include <GdiPlusHeaders.h>
 #include <GdiPlusColor.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 using namespace Gdiplus;
 
 #ifdef _DEBUG
@@ -105,6 +109,110 @@ CWinApp theApp;  // The one and only application object
 
 using namespace std;
 
+class ThreadPool;
+
+// our worker thread objects
+class Worker {
+public:
+	Worker(ThreadPool &s) : pool(s) { }
+	void operator()();
+private:
+	ThreadPool &pool;
+};
+
+// the actual thread pool
+class ThreadPool {
+public:
+	ThreadPool(size_t);
+	template<class F>
+	void enqueue(F f, int x);
+	~ThreadPool();
+private:
+	friend class Worker;
+
+	// need to keep track of threads so we can join them
+	std::vector< std::thread > workers;
+
+	// the task queue
+	std::deque< std::function<void(int)> > tasks;
+
+	// synchronization
+	std::mutex queue_mutex;
+	std::condition_variable condition;
+	bool stop;
+};
+
+void Worker::operator()()
+{
+	std::function<void(int)> task;
+	while (true)
+	{
+		{   // acquire lock
+			std::unique_lock<std::mutex>
+				lock(pool.queue_mutex);
+
+			// look for a work item
+			while (!pool.stop && pool.tasks.empty())
+			{ // if there are none wait for notification
+				pool.condition.wait(lock);
+			}
+
+			if (pool.stop) // exit if the pool is stopped
+				return;
+
+			// get the task from the queue
+			task = pool.tasks.front();
+			pool.tasks.pop_front();
+
+		}   // release lock
+
+			// execute the task
+		task(3);
+	}
+}
+
+// the constructor just launches some amount of workers
+ThreadPool::ThreadPool(size_t threads)
+	: stop(false)
+{
+	for (size_t i = 0; i<threads; ++i)
+		workers.push_back(std::thread(Worker(*this)));
+}
+
+// the destructor joins all threads
+ThreadPool::~ThreadPool()
+{
+	// stop all threads
+	stop = true;
+	condition.notify_all();
+
+	// join them
+	for (size_t i = 0; i<workers.size(); ++i)
+		workers[i].join();
+}
+
+LPCWSTR inputFilenames[] = { L"IMG_1.JPG", L"IMG_2.JPG" , L"IMG_3.JPG" , L"IMG_4.JPG" , 
+L"IMG_5.JPG" , L"IMG_6.JPG" , L"IMG_7.JPG", L"IMG_8.JPG", L"IMG_9.JPG", L"IMG_10.JPG", L"IMG_11.JPG",L"IMG_12.JPG" };
+
+LPCWSTR outputFilenames[] = { L"IMG_1.PNG", L"IMG_2.PNG" , L"IMG_3.PNG" , L"IMG_4.PNG" ,
+L"IMG_5.PNG" , L"IMG_6.PNG" , L"IMG_7.PNG", L"IMG_8.PNG", L"IMG_9.PNG", L"IMG_10.PNG", L"IMG_11.PNG",L"IMG_12.PNG" };
+
+template<class F>
+void ThreadPool::enqueue(F f, int x)
+{
+	{ // acquire lock
+		std::unique_lock<std::mutex> lock(queue_mutex);
+
+		// add the task
+
+		std::function<void(int)> func = std::bind(f, x);
+
+		tasks.push_back(func);
+	} // release lock
+
+	  // wake up one thread
+	condition.notify_one();
+}
 
 class TImage : public CImage
 {
@@ -115,6 +223,7 @@ public:
 		resize(image);
 		greyscale(image);
 		rotate(image);
+		//bilinearFilter(image);
 
 		return image;
 	}
@@ -135,7 +244,6 @@ private:
 		{
 			for (int x = 0; x < width; ++x)
 			{
-
 				lAdrs = y * pitch + x * 3;
 
 				bRed = *(pInImage + lAdrs);
@@ -168,8 +276,72 @@ private:
 		this->StretchBlt(image.GetDC(), 0, 0, width, height, SRCCOPY);
 	}
 
+	void bilinearFilter(TImage &image) {
+		int width = image.GetWidth();
+		int height = image.GetHeight();
+
+		long lAdrs;
+
+		long lAdrs1;
+		long lAdrs2;
+		long lAdrs3;
+		long lAdrs4;
+
+		BYTE* pInImage = (BYTE*)image.GetBits();
+		BYTE bRed, bGreen, bBlue;
+		int pitch = image.GetPitch();
+		double newColour;
+
+		for (int y = 0; y < height; ++y)
+		{
+			for (int x = 0; x < width; ++x)
+			{
+				if ((x > 0) && (y > 0) && (x < width) & (y < height))
+				{
+					lAdrs = y * pitch + x * 3;
+
+					lAdrs1 = (y-1) * pitch + x * 3;
+					lAdrs2 = y * pitch + (x+1) * 3;
+					lAdrs3 = (y+1) * pitch + x * 3;
+					lAdrs4 = y * pitch + (x-1) * 3;
+
+					int px = (int)x; // floor of x
+					int py = (int)y;
+
+					float fx = x - px;
+					float fy = y - py;
+					float fx1 = 1.0f - fx;
+					float fy1 = 1.0f - fy;
+
+					int w1 = fx1 * fy1 * 256.0f;
+					int w2 = fx  * fy1 * 256.0f;
+					int w3 = fx1 * fy  * 256.0f;
+					int w4 = fx  * fy  * 256.0f;
+
+					int outr = *(pInImage + lAdrs1) * w1 + *(pInImage + lAdrs2) * w2 + *(pInImage + lAdrs3) * w3 + *(pInImage + lAdrs4) * w4;
+					int outg = *(pInImage + lAdrs1 + 1) * w1 + *(pInImage + lAdrs2 + 1) * w2 + *(pInImage + lAdrs3 + 1) * w3 + *(pInImage + lAdrs4 + 1) * w4;
+					int outb = *(pInImage + lAdrs1 + 2) * w1 + *(pInImage + lAdrs2 + 2) * w2 + *(pInImage + lAdrs3 + 2) * w3 + *(pInImage + lAdrs4 + 2) * w4;
+
+					newColour = outr + outg + outb;
+
+					*(pInImage + lAdrs) = static_cast<BYTE>(newColour);
+					*(pInImage + lAdrs + 1) = static_cast<BYTE>(newColour);
+					*(pInImage + lAdrs + 2) = static_cast<BYTE>(newColour);
+				}
+			}
+		}
+	}
+
 
 };
+
+void work(int x) {
+	TImage image;
+
+	image.Load(inputFilenames[x]);
+	image.processImages().Save(outputFilenames[x]);
+}
+
 
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 {
@@ -191,53 +363,13 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 						//--------------------------------------------------------------------------------------
 						// Process the images...   // Put your code here...
 
-		TImage b1;
-		b1.Load(L"IMG_1.JPG");
-		b1.processImages().Save(L"IMG_1.PNG");
+		ThreadPool threadpool(4);
 
-		TImage b2;
-		b2.Load(L"IMG_2.JPG");
-		b2.processImages().Save(L"IMG_2.PNG");
+		for (size_t i = 0; i < 12; i++)
+		{
+			threadpool.enqueue(&work, i);
+		}
 
-		TImage b3;
-		b3.Load(L"IMG_3.JPG");
-		b3.processImages().Save(L"IMG_3.PNG");
-
-		TImage b4;
-		b4.Load(L"IMG_4.JPG");
-		b4.processImages().Save(L"IMG_4.PNG");
-
-		TImage b5;
-		b5.Load(L"IMG_5.JPG");
-		b5.processImages().Save(L"IMG_5.PNG");
-
-		TImage b6;
-		b6.Load(L"IMG_6.JPG");
-		b6.processImages().Save(L"IMG_6.PNG");
-
-		TImage b7;
-		b7.Load(L"IMG_7.JPG");
-		b7.processImages().Save(L"IMG_7.PNG");
-
-		TImage b8;
-		b8.Load(L"IMG_8.JPG");
-		b8.processImages().Save(L"IMG_8.PNG");
-
-		TImage b9;
-		b9.Load(L"IMG_9.JPG");
-		b9.processImages().Save(L"IMG_9.PNG");
-
-		TImage b10;
-		b10.Load(L"IMG_10.JPG");
-		b10.processImages().Save(L"IMG_10.PNG");
-
-		TImage b11;
-		b11.Load(L"IMG_11.JPG");
-		b11.processImages().Save(L"IMG_11.PNG");
-
-		TImage b12;
-		b12.Load(L"IMG_12.JPG");
-		b12.processImages().Save(L"IMG_12.PNG");
 
 
 		//-------------------------------------------------------------------------------------------------------
