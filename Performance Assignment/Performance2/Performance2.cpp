@@ -6,6 +6,9 @@
 
 #include <vector>
 #include <iostream>
+#include <GdiPlusHeaders.h>
+#include <GdiPlusColor.h>
+using namespace Gdiplus;
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -103,61 +106,31 @@ CWinApp theApp;  // The one and only application object
 using namespace std;
 
 
-CImage* Copy(CImage *source)
-{
-	CImage *dest = new CImage;
-	dest->Create(source->GetWidth(), source->GetHeight(), source->GetBPP());
-	source->Draw(dest->GetDC(), 0, 0, dest->GetWidth(), dest->GetHeight(), 0, 0, source->GetWidth(), source->GetHeight());
-	dest->ReleaseDC();
-	return dest;
-}
-
-CImage* Brighten(CImage *i)
-{
-	CImage *dest = Copy(i);
-
-	int width = dest->GetWidth();
-	int height = dest->GetHeight();
-
-	for (int y = 0; y < height; y++)
-	{
-		for (int x = 0; x < width; x++)
-		{
-			COLORREF pixel = dest->GetPixel(x, y);
-
-			BYTE r = GetRValue(pixel);
-			BYTE g = GetGValue(pixel);
-			BYTE b = GetBValue(pixel);
-
-			if ((r + 10) > 255) r = 255; else r += 10;
-			if ((g + 10) > 255) g = 255; else g += 10;
-			if ((b + 10) > 255) b = 255; else b += 10;
-
-			pixel = RGB(r, g, b);
-
-			dest->SetPixel(x, y, pixel);
-		}
-	}
-
-	return dest;
-}
-
 class TImage : public CImage
 {
 public:
-	void greyscale() {
+	TImage processImages() {
+		TImage image;
 
-		int width = this->GetWidth();
-		int height = this->GetHeight();
+		resize(image);
+		greyscale(image);
+		rotate(image);
 
-		
+		return image;
+	}
+
+private:
+	void greyscale(TImage &image) {
+
+		int width = image.GetWidth();
+		int height = image.GetHeight();
+
 		long lAdrs;
 		double grey;
-		BYTE* pInImage = (BYTE*)this->GetBits();
+		BYTE* pInImage = (BYTE*)image.GetBits();
 		BYTE bRed, bGreen, bBlue;
-		int pitch = this->GetPitch();
+		int pitch = image.GetPitch();
 
-	
 		for (int y = 0; y < height; ++y)
 		{
 			for (int x = 0; x < width; ++x)
@@ -178,9 +151,24 @@ public:
 		}
 	}
 
-	void bilinearInterpolation() {
-		// http://stackoverflow.com/questions/21572460/resizing-a-picture-vc
+	void rotate(TImage &image) {
+		Bitmap* gdiPlusBitmap = Bitmap::FromHBITMAP(image, NULL);
+		gdiPlusBitmap->RotateFlip(Rotate90FlipNone);
+		HBITMAP hbmp;
+		gdiPlusBitmap->GetHBITMAP(Color::White, &hbmp);
+		image.Attach(hbmp);
 	}
+
+	void resize(TImage &image) {
+		int width = this->GetWidth() / 2;
+		int height = this->GetHeight() / 2;
+
+		image.Create(width, height, this->GetBPP());
+
+		this->StretchBlt(image.GetDC(), 0, 0, width, height, SRCCOPY);
+	}
+
+
 };
 
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
@@ -205,63 +193,51 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 		TImage b1;
 		b1.Load(L"IMG_1.JPG");
-		b1.greyscale();
-		b1.Save(L"IMG_1.PNG");
+		b1.processImages().Save(L"IMG_1.PNG");
 
 		TImage b2;
 		b2.Load(L"IMG_2.JPG");
-		b2.greyscale();
-		b2.Save(L"IMG_2.PNG");
+		b2.processImages().Save(L"IMG_2.PNG");
 
 		TImage b3;
 		b3.Load(L"IMG_3.JPG");
-		b3.greyscale();
-		b3.Save(L"IMG_3.PNG");
+		b3.processImages().Save(L"IMG_3.PNG");
 
 		TImage b4;
 		b4.Load(L"IMG_4.JPG");
-		b4.greyscale();
-		b4.Save(L"IMG_4.PNG");
+		b4.processImages().Save(L"IMG_4.PNG");
 
 		TImage b5;
 		b5.Load(L"IMG_5.JPG");
-		b5.greyscale();
-		b5.Save(L"IMG_5.PNG");
+		b5.processImages().Save(L"IMG_5.PNG");
 
 		TImage b6;
 		b6.Load(L"IMG_6.JPG");
-		b6.greyscale();
-		b6.Save(L"IMG_6.PNG");
+		b6.processImages().Save(L"IMG_6.PNG");
 
 		TImage b7;
 		b7.Load(L"IMG_7.JPG");
-		b7.greyscale();
-		b7.Save(L"IMG_7.PNG");
+		b7.processImages().Save(L"IMG_7.PNG");
 
 		TImage b8;
 		b8.Load(L"IMG_8.JPG");
-		b8.greyscale();
-		b8.Save(L"IMG_8.PNG");
+		b8.processImages().Save(L"IMG_8.PNG");
 
 		TImage b9;
 		b9.Load(L"IMG_9.JPG");
-		b9.greyscale();
-		b9.Save(L"IMG_9.PNG");
+		b9.processImages().Save(L"IMG_9.PNG");
 
 		TImage b10;
 		b10.Load(L"IMG_10.JPG");
-		b10.greyscale();
-		b10.Save(L"IMG_10.PNG");
+		b10.processImages().Save(L"IMG_10.PNG");
 
 		TImage b11;
 		b11.Load(L"IMG_11.JPG");
-		b11.greyscale();
-		b11.Save(L"IMG_11.PNG");
+		b11.processImages().Save(L"IMG_11.PNG");
 
 		TImage b12;
 		b12.Load(L"IMG_12.JPG");
-		b12.greyscale();
-		b12.Save(L"IMG_12.PNG");
+		b12.processImages().Save(L"IMG_12.PNG");
 
 
 		//-------------------------------------------------------------------------------------------------------
